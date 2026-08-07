@@ -9,10 +9,14 @@ import os
 import json
 import re
 from fastapi import HTTPException
+from dotenv import load_dotenv
 from google import genai
 from google.genai import types
 
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+load_dotenv()
+
+def _get_api_key() -> str:
+    return os.getenv("GEMINI_API_KEY", "")
 
 SYSTEM_PROMPT = """You are an interview-answer analysis assistant.
 
@@ -28,7 +32,9 @@ Return ONLY valid JSON with exactly these keys:
   "correct_answer": "the ideal/correct answer to the question",
   "improved_answer": "an improved version of the user's own answer, keeping their approach where reasonable",
   "explanation": "why the ideal answer is correct, explained clearly",
-  "missing_points": "important points the user's answer missed, as a short bullet-style string"
+  "missing_points": "important points the user's answer missed, as a short bullet-style string",
+  "is_correct": true_or_false,
+  "verdict": "Exact text: 'Your answer is correct' if is_correct is true, otherwise 'Your answer is wrong'"
 }
 """
 
@@ -39,6 +45,7 @@ def _extract_json(text: str) -> dict:
 
 
 def generate_ai_feedback(question: str, user_answer: str) -> dict:
+    GEMINI_API_KEY = _get_api_key()
     if not GEMINI_API_KEY:
         raise HTTPException(
             status_code=503,
@@ -50,7 +57,7 @@ def generate_ai_feedback(question: str, user_answer: str) -> dict:
 
     try:
         response = client.models.generate_content(
-            model="gemini-2.5-flash",
+            model="gemini-3.5-flash",
             contents=prompt,
             config=types.GenerateContentConfig(
                 system_instruction=SYSTEM_PROMPT,
@@ -58,11 +65,14 @@ def generate_ai_feedback(question: str, user_answer: str) -> dict:
             ),
         )
         data = _extract_json(response.text)
+        is_correct = bool(data.get("is_correct", True))
         return {
             "correct_answer": data.get("correct_answer", ""),
             "improved_answer": data.get("improved_answer", ""),
             "explanation": data.get("explanation", ""),
             "missing_points": data.get("missing_points", ""),
+            "is_correct": is_correct,
+            "verdict": "Your answer is correct" if is_correct else "Your answer is wrong",
         }
     except json.JSONDecodeError:
         raise HTTPException(status_code=502, detail="AI response could not be parsed. Try again.")

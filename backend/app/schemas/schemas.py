@@ -144,6 +144,8 @@ class AIGenerateResponse(BaseModel):
     improved_answer: str
     explanation: str
     missing_points: str
+    is_correct: bool = True
+    verdict: str = "Your answer is correct"
 
 
 # ---------- Analytics ----------

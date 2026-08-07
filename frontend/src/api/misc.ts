@@ -8,6 +8,9 @@ export const questionApi = {
   addToRound: (roundId: string, payload: { question: string; user_answer?: string; topic?: string; difficulty?: string }) =>
     api.post<Question>(`/api/questions/round/${roundId}`, payload).then((r) => r.data),
 
+  addToInterview: (interviewId: string, payload: { question: string; user_answer?: string; topic?: string; difficulty?: string }) =>
+    api.post<Question>(`/api/interviews/${interviewId}/questions`, payload).then((r) => r.data),
+
   update: (id: string, payload: Partial<Question>) =>
     api.put<Question>(`/api/questions/${id}`, payload).then((r) => r.data),
 

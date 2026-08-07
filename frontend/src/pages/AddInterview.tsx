@@ -1,8 +1,17 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Plus, Trash2 } from "lucide-react";
 import AppLayout from "../components/layout/AppLayout";
 import { Card, Input, Label, Button } from "../components/ui";
 import { interviewApi } from "../api/interviews";
+import AIAnswerCheck from "../components/AIAnswerCheck";
+
+interface DraftQuestion {
+  question: string;
+  user_answer: string;
+  topic: string;
+  difficulty: string;
+}
 
 export default function AddInterview() {
   const navigate = useNavigate();
@@ -17,10 +26,21 @@ export default function AddInterview() {
     notes: "",
     status: "pending",
   });
+  const [questions, setQuestions] = useState<DraftQuestion[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
   const set = (key: string, value: string | number) => setForm((f) => ({ ...f, [key]: value }));
+  const setQ = (idx: number, key: keyof DraftQuestion, value: string) =>
+    setQuestions((qs) => {
+      const next = [...qs];
+      next[idx] = { ...next[idx], [key]: value };
+      return next;
+    });
+  const addQuestion = () =>
+    setQuestions((qs) => [...qs, { question: "", user_answer: "", topic: "", difficulty: "Medium" }]);
+  const removeQuestion = (idx: number) =>
+    setQuestions((qs) => qs.filter((_, i) => i !== idx));
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,9 +59,13 @@ export default function AddInterview() {
         status: form.status,
         confidence: Number(form.confidence),
         notes: form.notes,
-        rounds: form.round_name
-          ? [{ round_name: form.round_name, round_result: form.result }]
-          : [],
+        rounds: [
+          {
+            round_name: form.round_name || "Round 1",
+            round_result: form.result,
+            questions: questions.filter((q) => q.question.trim()),
+          },
+        ],
       });
       navigate(`/interviews/${interview.id}`);
     } catch (err: any) {
@@ -159,6 +183,76 @@ export default function AddInterview() {
             </div>
 
             {error && <p className="text-sm text-red-600">{error}</p>}
+
+            <div className="pt-4 border-t border-gray-100">
+              <div className="flex items-center justify-between mb-1">
+                <h2 className="font-semibold text-gray-900">Questions</h2>
+                <Button type="button" variant="secondary" className="text-xs px-3 py-1.5" onClick={addQuestion}>
+                  <Plus className="w-3.5 h-3.5 mr-1 inline" /> Add Question
+                </Button>
+              </div>
+              <p className="text-sm text-gray-500 mb-4">
+                Add questions and your answers. Use "Check answer with AI" to get the original answer and a correct/wrong verdict.
+              </p>
+
+              {questions.length === 0 ? (
+                <p className="text-sm text-gray-400">No questions added yet.</p>
+              ) : (
+                <div className="space-y-4">
+                  {questions.map((q, idx) => (
+                    <div key={idx} className="rounded-xl border border-gray-200 p-4 bg-white">
+                      <div className="flex items-start justify-between gap-2 mb-3">
+                        <Label>Question {idx + 1}</Label>
+                        <button
+                          type="button"
+                          onClick={() => removeQuestion(idx)}
+                          className="text-gray-400 hover:text-red-600"
+                          title="Remove question"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                      <Input
+                        placeholder="Enter the question asked"
+                        value={q.question}
+                        onChange={(e) => setQ(idx, "question", e.target.value)}
+                      />
+                      <Label>Your Answer</Label>
+                      <textarea
+                        rows={2}
+                        placeholder="Enter your answer"
+                        value={q.user_answer}
+                        onChange={(e) => setQ(idx, "user_answer", e.target.value)}
+                        className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brand-200 resize-none"
+                      />
+                      <AIAnswerCheck question={q.question} answer={q.user_answer} />
+                      <div className="grid grid-cols-2 gap-3 mt-3">
+                        <div>
+                          <Label>Topic</Label>
+                          <Input
+                            placeholder="e.g. Array"
+                            value={q.topic}
+                            onChange={(e) => setQ(idx, "topic", e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <Label>Difficulty</Label>
+                          <select
+                            value={q.difficulty}
+                            onChange={(e) => setQ(idx, "difficulty", e.target.value)}
+                            className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brand-200"
+                          >
+                            <option>Easy</option>
+                            <option>Medium</option>
+                            <option>Hard</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
 
             <div className="flex justify-end gap-3 pt-2">
               <Button type="button" variant="secondary" onClick={() => navigate("/interviews")}>

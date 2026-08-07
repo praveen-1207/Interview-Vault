@@ -4,7 +4,9 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.database.connection import get_db
 from app.models.models import Interview, Company, Round, Question, User, Analytics
-from app.schemas.schemas import InterviewCreate, InterviewUpdate, InterviewOut
+from app.schemas.schemas import (
+    InterviewCreate, InterviewUpdate, InterviewOut, QuestionCreate, QuestionOut,
+)
 from app.authentication.auth import get_current_user
 
 router = APIRouter(prefix="/api/interviews", tags=["Interviews"])
@@ -198,3 +200,37 @@ def add_round(
     db.commit()
     db.refresh(interview)
     return _to_out(interview)
+
+
+@router.post("/{interview_id}/questions", response_model=QuestionOut, status_code=201)
+def add_question_to_interview(
+    interview_id: str,
+    payload: QuestionCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Add a question to an interview. Auto-creates a default round if the
+    interview has no rounds yet, so questions can always be added."""
+    interview = db.query(Interview).filter(
+        Interview.id == interview_id, Interview.user_id == current_user.id
+    ).first()
+    if not interview:
+        raise HTTPException(status_code=404, detail="Interview not found")
+
+    round_obj = (
+        db.query(Round)
+        .filter(Round.interview_id == interview.id)
+        .order_by(Round.order_index)
+        .first()
+    )
+    if not round_obj:
+        round_obj = Round(interview_id=interview.id, round_name="Round 1", order_index=0)
+        db.add(round_obj)
+        db.commit()
+        db.refresh(round_obj)
+
+    question = Question(round_id=round_obj.id, **payload.model_dump())
+    db.add(question)
+    db.commit()
+    db.refresh(question)
+    return question

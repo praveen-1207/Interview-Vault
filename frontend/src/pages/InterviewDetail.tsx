@@ -6,6 +6,7 @@ import { Card, StatusBadge, Button, Input } from "../components/ui";
 import { interviewApi } from "../api/interviews";
 import { questionApi, aiApi } from "../api/misc";
 import type { Interview } from "../types";
+import AIAnswerCheck from "../components/AIAnswerCheck";
 
 export default function InterviewDetail() {
   const { id } = useParams<{ id: string }>();
@@ -153,6 +154,7 @@ export default function InterviewDetail() {
                     onChange={(e) => setNewQ({ ...newQ, user_answer: e.target.value })}
                     className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none resize-none"
                   />
+                  <AIAnswerCheck question={newQ.question} answer={newQ.user_answer} />
                   <div className="grid grid-cols-2 gap-3">
                     <Input
                       placeholder="Topic (e.g. Array)"

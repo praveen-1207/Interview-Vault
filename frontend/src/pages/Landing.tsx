@@ -21,7 +21,6 @@ export default function Landing() {
         <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-gray-600">
           <a href="#features">Features</a>
           <a href="#how">How it Works</a>
-          <a href="#pricing">Pricing</a>
         </nav>
         <Link to="/register" className="bg-brand-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-brand-700 transition">
           Get Started
