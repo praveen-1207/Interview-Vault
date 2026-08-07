@@ -15,6 +15,7 @@ export default function InterviewDetail() {
   const [activeTab, setActiveTab] = useState<"questions" | "notes">("questions");
   const [generatingId, setGeneratingId] = useState<string | null>(null);
   const [showAddQuestion, setShowAddQuestion] = useState<string | null>(null);
+  const [showTopAdd, setShowTopAdd] = useState(false);
   const [newQ, setNewQ] = useState({ question: "", user_answer: "", topic: "", difficulty: "Medium" });
 
   const load = () => {
@@ -42,6 +43,14 @@ export default function InterviewDetail() {
     await questionApi.addToRound(roundId, newQ);
     setNewQ({ question: "", user_answer: "", topic: "", difficulty: "Medium" });
     setShowAddQuestion(null);
+    load();
+  };
+
+  const addTopQuestion = async () => {
+    if (!id || !newQ.question) return;
+    await questionApi.addToInterview(id, newQ);
+    setNewQ({ question: "", user_answer: "", topic: "", difficulty: "Medium" });
+    setShowTopAdd(false);
     load();
   };
 
@@ -118,7 +127,59 @@ export default function InterviewDetail() {
         </Card>
       ) : (
         <div className="space-y-5">
-          {interview.rounds.length === 0 && (
+          <Card className="flex items-center justify-between">
+            <div>
+              <h3 className="font-semibold text-gray-900">Questions</h3>
+              <p className="text-sm text-gray-500 mt-0.5">
+                Add a question and answer for {interview.company_name}. Questions go to a "Round 1" by default.
+              </p>
+            </div>
+            <Button onClick={() => { setShowTopAdd(!showTopAdd); setActiveTab("questions"); }}>
+              <Plus className="w-4 h-4 mr-1.5 inline" /> Add Question
+            </Button>
+          </Card>
+
+          {showTopAdd && (
+            <Card className="bg-gray-50">
+              <div className="space-y-3">
+                <Input
+                  placeholder="Question"
+                  value={newQ.question}
+                  onChange={(e) => setNewQ({ ...newQ, question: e.target.value })}
+                />
+                <textarea
+                  placeholder="Your answer"
+                  rows={2}
+                  value={newQ.user_answer}
+                  onChange={(e) => setNewQ({ ...newQ, user_answer: e.target.value })}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none resize-none"
+                />
+                <AIAnswerCheck question={newQ.question} answer={newQ.user_answer} />
+                <div className="grid grid-cols-2 gap-3">
+                  <Input
+                    placeholder="Topic (e.g. Array)"
+                    value={newQ.topic}
+                    onChange={(e) => setNewQ({ ...newQ, topic: e.target.value })}
+                  />
+                  <select
+                    value={newQ.difficulty}
+                    onChange={(e) => setNewQ({ ...newQ, difficulty: e.target.value })}
+                    className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none"
+                  >
+                    <option>Easy</option>
+                    <option>Medium</option>
+                    <option>Hard</option>
+                  </select>
+                </div>
+                <div className="flex justify-end gap-2 pt-1">
+                  <Button type="button" variant="secondary" onClick={() => setShowTopAdd(false)}>Cancel</Button>
+                  <Button type="button" onClick={addTopQuestion} disabled={!newQ.question}>Save Question</Button>
+                </div>
+              </div>
+            </Card>
+          )}
+
+          {interview.rounds.length === 0 && !showTopAdd && (
             <Card>
               <p className="text-sm text-gray-500">No rounds added yet.</p>
             </Card>

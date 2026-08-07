@@ -1,16 +1,117 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, X } from "lucide-react";
 import AppLayout from "../components/layout/AppLayout";
-import { Card, StatusBadge, Input } from "../components/ui";
+import { Card, StatusBadge, Input, Button } from "../components/ui";
 import { interviewApi } from "../api/interviews";
+import { questionApi } from "../api/misc";
 import type { Interview } from "../types";
+import AIAnswerCheck from "../components/AIAnswerCheck";
+
+interface DraftQuestion {
+  question: string;
+  user_answer: string;
+  topic: string;
+  difficulty: string;
+}
+
+const emptyQ: DraftQuestion = { question: "", user_answer: "", topic: "", difficulty: "Medium" };
+
+function AddQuestionModal({
+  interview,
+  onClose,
+  onSaved,
+}: {
+  interview: Interview | null;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [draft, setDraft] = useState<DraftQuestion>(emptyQ);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => setDraft(emptyQ), [interview]);
+
+  if (!interview) return null;
+
+  const save = async () => {
+    if (!draft.question || saving) return;
+    setSaving(true);
+    try {
+      await questionApi.addToInterview(interview.id, draft);
+      onSaved();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-lg p-6">
+        <div className="flex items-start justify-between mb-4">
+          <div>
+            <h3 className="text-lg font-bold text-gray-900">Add Question</h3>
+            <p className="text-sm text-gray-500 mt-0.5">for {interview.company_name}</p>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="space-y-3">
+          <Input
+            placeholder="Question"
+            value={draft.question}
+            onChange={(e) => setDraft({ ...draft, question: e.target.value })}
+          />
+          <div>
+            <p className="text-xs font-medium text-gray-500 mb-1">Your Answer</p>
+            <textarea
+              rows={3}
+              placeholder="Enter your answer"
+              value={draft.user_answer}
+              onChange={(e) => setDraft({ ...draft, user_answer: e.target.value })}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm outline-none resize-none"
+            />
+            <AIAnswerCheck question={draft.question} answer={draft.user_answer} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Input
+              placeholder="Topic (e.g. Array)"
+              value={draft.topic}
+              onChange={(e) => setDraft({ ...draft, topic: e.target.value })}
+            />
+            <select
+              value={draft.difficulty}
+              onChange={(e) => setDraft({ ...draft, difficulty: e.target.value })}
+              className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none w-full"
+            >
+              <option>Easy</option>
+              <option>Medium</option>
+              <option>Hard</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-2 pt-5">
+          <Button type="button" variant="secondary" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="button" disabled={!draft.question || saving} onClick={save}>
+            {saving ? "Saving..." : "Save Question"}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function Interviews() {
   const [interviews, setInterviews] = useState<Interview[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("");
   const [search, setSearch] = useState("");
+  const [selectedCompany, setSelectedCompany] = useState<Interview | null>(null);
 
   const load = () => {
     setLoading(true);
@@ -84,8 +185,8 @@ export default function Interviews() {
                 <th className="pb-3 font-medium">Role</th>
                 <th className="pb-3 font-medium">Date</th>
                 <th className="pb-3 font-medium">Rounds</th>
-                <th className="pb-3 font-medium">Confidence</th>
                 <th className="pb-3 font-medium">Status</th>
+                <th className="pb-3 font-medium text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
@@ -101,9 +202,17 @@ export default function Interviews() {
                     {i.date ? new Date(i.date).toLocaleDateString() : "—"}
                   </td>
                   <td className="py-3 text-gray-500">{i.rounds.length}</td>
-                  <td className="py-3 text-gray-500">{i.confidence}/10</td>
                   <td className="py-3">
                     <StatusBadge status={i.status} />
+                  </td>
+                  <td className="py-3 text-right">
+                    <Button
+                      variant="secondary"
+                      className="text-xs px-3 py-1.5"
+                      onClick={() => setSelectedCompany(i)}
+                    >
+                      <Plus className="w-3.5 h-3.5 mr-1 inline" /> Add Question
+                    </Button>
                   </td>
                 </tr>
               ))}
@@ -111,6 +220,15 @@ export default function Interviews() {
           </table>
         )}
       </Card>
+
+      <AddQuestionModal
+        interview={selectedCompany}
+        onClose={() => setSelectedCompany(null)}
+        onSaved={() => {
+          setSelectedCompany(null);
+          load();
+        }}
+      />
     </AppLayout>
   );
 }
