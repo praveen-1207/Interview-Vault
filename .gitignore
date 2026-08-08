@@ -1,0 +1,19 @@
+# Environment / secret files — NEVER commit these
+.env
+.env.*
+!.env.example
+*.env.bak
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

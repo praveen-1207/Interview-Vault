@@ -1,0 +1,27 @@
+#!/bin/sh
+# Pre-commit hook: block .env* files and obvious secrets.
+# Enabled repo-wide via: git config core.hooksPath .githooks
+
+FAIL=0
+
+# 1. Block any staged secret-ish env files (name contains .env as a component
+#    or extension), except the safe .env.example template.
+STAGED_ENV=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.env([^e]|$)' | grep -v '\.env\.example$')
+if [ -n "$STAGED_ENV" ]; then
+  echo "ERROR: Refusing to commit environment/secret file(s):"
+  echo "$STAGED_ENV"
+  echo "Remove them from the repo with: git rm --cached <file>"
+  FAIL=1
+fi
+
+# 2. Block obvious secret values in staged content
+if git diff --cached | grep -aIE '^(AKIA[0-9A-Z]{16}|AIza[0-9A-Za-z_\-]{35}|ghp_[0-9A-Za-z]{36}|sk-[0-9A-Za-z]{20,}|-----BEGIN [A-Z ]*PRIVATE KEY-----)' >/dev/null 2>&1; then
+  echo "ERROR: Staged changes appear to contain secret/API key material."
+  echo "Remove the secrets before committing."
+  FAIL=1
+fi
+
+if [ "$FAIL" -ne 0 ]; then
+  exit 1
+fi
+exit 0
