@@ -4,6 +4,9 @@ import { Sparkles } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { Button, Input, Label } from "../components/ui";
 
+// ---- Register ----------------------------------------------------------
+// Sign-up form. Calls AuthContext.register (backed signs the user in too)
+// then redirects to the dashboard.
 export default function Register() {
   const { register } = useAuth();
   const navigate = useNavigate();

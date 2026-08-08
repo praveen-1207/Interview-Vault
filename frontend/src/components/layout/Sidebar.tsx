@@ -1,16 +1,18 @@
+// Sidebar — the left navigation for authenticated pages.
+// Renders nav links to every main route and a Logout button.
 import { NavLink } from "react-router-dom";
 import {
   LayoutDashboard, Briefcase, Library, BarChart3,
-  User, Settings, LogOut, Sparkles,
+  Settings, LogOut, Sparkles,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 
+// Each entry maps a route path to its label + icon shown in the sidebar.
 const navItems = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/interviews", label: "Interviews", icon: Briefcase },
   { to: "/questions", label: "Question Library", icon: Library },
   { to: "/analysis", label: "AI Analysis", icon: BarChart3 },
-  { to: "/profile", label: "Profile", icon: User },
   { to: "/settings", label: "Settings", icon: Settings },
 ];
 
@@ -19,6 +21,7 @@ export default function Sidebar() {
 
   return (
     <aside className="w-64 shrink-0 border-r border-gray-100 bg-white flex flex-col h-screen sticky top-0">
+      {/* Logo + app name */}
       <div className="px-6 py-5 flex items-center gap-2 border-b border-gray-100">
         <div className="w-8 h-8 rounded-lg bg-brand-600 flex items-center justify-center">
           <Sparkles className="w-4 h-4 text-white" />
@@ -26,6 +29,7 @@ export default function Sidebar() {
         <span className="font-bold text-lg text-gray-900">InterviewVault</span>
       </div>
 
+      {/* Nav links. NavLink automatically highlights the active page. */}
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
         {navItems.map(({ to, label, icon: Icon }) => (
           <NavLink

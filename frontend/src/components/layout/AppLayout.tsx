@@ -1,3 +1,6 @@
+// AppLayout — the common shell for every authenticated page.
+// Lays out the left Sidebar, the Topbar, and the page's content (`children`)
+// in the main area. Pages just wrap their markup in <AppLayout>...</AppLayout>.
 import type { ReactNode } from "react";
 import Sidebar from "./Sidebar";
 import Topbar from "./Topbar";

@@ -4,6 +4,9 @@ import { Sparkles } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { Button, Input, Label } from "../components/ui";
 
+// ---- Login -------------------------------------------------------------
+// Sign-in form. Calls the shared `login` from AuthContext which stores the
+// tokens, then redirects to the dashboard. Shows a clean error on failure.
 export default function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();

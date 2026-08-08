@@ -15,6 +15,12 @@ def update_profile(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    """Update the logged-in user's profile (name and/or bio).
+
+    `exclude_unset=True` means only the fields sent by the frontend are
+    applied. The settings page sends `{ name, bio }` and we simply write them
+    back onto the current user row, then return the updated user object.
+    """
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(current_user, field, value)
     db.commit()

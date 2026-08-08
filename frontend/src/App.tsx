@@ -1,3 +1,6 @@
+// App.tsx — root component. Sets up the auth provider and all routes.
+// Public routes (Landing/Login/Register) are open; the rest are wrapped in
+// <ProtectedRoute> so only logged-in users can see them.
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -11,6 +14,7 @@ import AddInterview from "./pages/AddInterview";
 import InterviewDetail from "./pages/InterviewDetail";
 import QuestionLibrary from "./pages/QuestionLibrary";
 import AIAnalysis from "./pages/AIAnalysis";
+import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
 
 export default function App() {
@@ -28,7 +32,7 @@ export default function App() {
           <Route path="/interviews/:id" element={<ProtectedRoute><InterviewDetail /></ProtectedRoute>} />
           <Route path="/questions" element={<ProtectedRoute><QuestionLibrary /></ProtectedRoute>} />
           <Route path="/analysis" element={<ProtectedRoute><AIAnalysis /></ProtectedRoute>} />
-          <Route path="/profile" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+          <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
           <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
         </Routes>
       </BrowserRouter>

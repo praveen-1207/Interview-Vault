@@ -5,12 +5,16 @@ import { Card, Input } from "../components/ui";
 import { questionApi } from "../api/misc";
 import type { Question } from "../types";
 
+// Map each difficulty to badge colors for the library list.
 const difficultyColor: Record<string, string> = {
   Easy: "bg-emerald-50 text-emerald-700",
   Medium: "bg-amber-50 text-amber-700",
   Hard: "bg-red-50 text-red-700",
 };
 
+// ---- QuestionLibrary ---------------------------------------------------
+// Browse and filter every question the user has stored across all interviews.
+// Search/topic/difficulty filters call the backend (debounced by 300ms).
 export default function QuestionLibrary() {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [search, setSearch] = useState("");
@@ -18,6 +22,7 @@ export default function QuestionLibrary() {
   const [difficulty, setDifficulty] = useState("");
   const [loading, setLoading] = useState(true);
 
+  // Ask the backend for questions matching the active filters.
   const load = () => {
     setLoading(true);
     questionApi
@@ -30,6 +35,7 @@ export default function QuestionLibrary() {
       .finally(() => setLoading(false));
   };
 
+  // Debounce: wait 300ms after the user stops typing, then search.
   useEffect(() => {
     const t = setTimeout(load, 300);
     return () => clearTimeout(t);

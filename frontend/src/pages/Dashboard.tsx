@@ -13,12 +13,17 @@ import type { Interview, Analytics } from "../types";
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Filler);
 
+// ---- Dashboard ---------------------------------------------------------
+// The home page: stat cards (counts), a monthly activity line chart, a
+// company distribution panel, and a list of the 5 most recent interviews.
+// All data comes from two parallel API calls on mount.
 export default function Dashboard() {
   const { user } = useAuth();
   const [interviews, setInterviews] = useState<Interview[]>([]);
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Load interviews + analytics together on mount (Promise.all = both at once).
   useEffect(() => {
     Promise.all([interviewApi.list(), analyticsApi.get()])
       .then(([i, a]) => {
@@ -28,13 +33,17 @@ export default function Dashboard() {
       .finally(() => setLoading(false));
   }, []);
 
+  // The headline numbers shown as stat cards (new status lifecycle).
   const stats = [
     { label: "Total Interviews", value: analytics?.total_interviews ?? 0, color: "text-gray-900" },
     { label: "Selected", value: analytics?.selected ?? 0, color: "text-emerald-600" },
+    { label: "Next Round", value: analytics?.next_round ?? 0, color: "text-violet-600" },
+    { label: "Awaiting Result", value: analytics?.awaiting_result ?? 0, color: "text-amber-600" },
+    { label: "No Response", value: analytics?.no_response ?? 0, color: "text-orange-600" },
     { label: "Rejected", value: analytics?.rejected ?? 0, color: "text-red-600" },
-    { label: "Pending", value: (analytics?.pending ?? 0) + (analytics?.waiting ?? 0), color: "text-amber-600" },
   ];
 
+  // Turn the monthly activity map into sorted labels + one dataset for chart.js.
   const monthly = analytics?.monthly_activity || {};
   const months = Object.keys(monthly).sort();
   const chartData = {
@@ -60,7 +69,7 @@ export default function Dashboard() {
         </p>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
         {stats.map((s) => (
           <Card key={s.label}>
             <p className="text-sm text-gray-500">{s.label}</p>
@@ -68,6 +77,30 @@ export default function Dashboard() {
           </Card>
         ))}
       </div>
+
+      {(analytics?.needs_attention ?? 0) > 0 && (
+        <Link
+          to="/interviews"
+          className="mb-6 flex items-center justify-between rounded-2xl border border-amber-200 bg-amber-50 px-5 py-3.5 hover:bg-amber-100 transition"
+        >
+          <div className="flex items-center gap-3">
+            <span className="w-9 h-9 rounded-full bg-amber-100 flex items-center justify-center text-amber-700 font-bold text-sm">
+              {(analytics?.needs_attention ?? 0) > 9 ? "9+" : analytics?.needs_attention}
+            </span>
+            <div>
+              <p className="text-sm font-semibold text-amber-900">
+                {(analytics?.needs_attention ?? 0) === 1
+                  ? "1 interview needs an update"
+                  : `${analytics?.needs_attention} interviews need updates`}
+              </p>
+              <p className="text-xs text-amber-700">
+                Update the status of your pending interviews to keep your tracker accurate.
+              </p>
+            </div>
+          </div>
+          <span className="text-sm font-medium text-amber-900">Review →</span>
+        </Link>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
         <Card className="lg:col-span-2">

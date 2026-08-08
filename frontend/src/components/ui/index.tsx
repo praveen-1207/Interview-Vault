@@ -1,5 +1,11 @@
+// =========================================================
+// Reusable UI building blocks (Card, StatusBadge, Button, Input, Label).
+// These keep the app's look consistent with Tailwind classes while hiding
+// the repeated markup, so pages just say <Card> / <Button> / <Input>.
+// =========================================================
 import type { ReactNode } from "react";
 
+// Card — a rounded white container with a soft border used as a content box.
 export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
     <div className={`bg-white rounded-2xl border border-gray-100 shadow-card p-5 ${className}`}>
@@ -8,25 +14,57 @@ export function Card({ children, className = "" }: { children: ReactNode; classN
   );
 }
 
+// Map each interview status to matching text colors (used by StatusBadge).
 const statusStyles: Record<string, string> = {
-  selected: "bg-emerald-50 text-emerald-700",
-  waiting: "bg-amber-50 text-amber-700",
-  rejected: "bg-red-50 text-red-700",
+  APPLIED: "bg-gray-100 text-gray-600",
+  SHORTLISTED: "bg-sky-50 text-sky-700",
+  INTERVIEW_SCHEDULED: "bg-indigo-50 text-indigo-700",
+  INTERVIEW_COMPLETED: "bg-blue-50 text-blue-700",
+  AWAITING_RESULT: "bg-amber-50 text-amber-700",
+  SELECTED: "bg-emerald-50 text-emerald-700",
+  REJECTED: "bg-red-50 text-red-700",
+  NEXT_ROUND: "bg-violet-50 text-violet-700",
+  NO_RESPONSE: "bg-orange-50 text-orange-700",
+  // Legacy lowercase values still render correctly.
   pending: "bg-gray-100 text-gray-600",
+  waiting: "bg-amber-50 text-amber-700",
 };
 
+// Human-readable label for each status (also used in filters/selects).
+const statusLabels: Record<string, string> = {
+  APPLIED: "Applied",
+  SHORTLISTED: "Shortlisted",
+  INTERVIEW_SCHEDULED: "Interview Scheduled",
+  INTERVIEW_COMPLETED: "Interview Completed",
+  AWAITING_RESULT: "Awaiting Result",
+  SELECTED: "Selected",
+  REJECTED: "Rejected",
+  NEXT_ROUND: "Next Round",
+  NO_RESPONSE: "No Response",
+  pending: "Pending",
+  waiting: "Waiting",
+};
+
+// statusLabel — pretty-print any status value for display in pills/selects.
+export function statusLabel(status: string): string {
+  return statusLabels[status] || status;
+}
+
+// StatusBadge — a small pill showing an interview status with its color.
 export function StatusBadge({ status }: { status: string }) {
   return (
     <span
-      className={`text-xs font-medium px-2.5 py-1 rounded-full capitalize ${
+      className={`text-xs font-medium px-2.5 py-1 rounded-full ${
         statusStyles[status] || statusStyles.pending
       }`}
     >
-      {status}
+      {statusLabel(status)}
     </span>
   );
 }
 
+// Button — the standard button with three visual variants:
+// primary (brand filled), secondary (gray), ghost (borderless).
 export function Button({
   children,
   variant = "primary",
@@ -48,6 +86,7 @@ export function Button({
   );
 }
 
+// Input — a styled text/number/date input box.
 export function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
@@ -57,6 +96,7 @@ export function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
   );
 }
 
+// Label — small bold caption placed above a form field.
 export function Label({ children }: { children: ReactNode }) {
   return <label className="block text-sm font-medium text-gray-700 mb-1.5">{children}</label>;
 }

@@ -4,13 +4,19 @@ import { Card } from "../components/ui";
 import { analyticsApi } from "../api/misc";
 import type { Analytics } from "../types";
 
+// ---- AIAnalysis --------------------------------------------------------
+// Insights page: overall confidence, success rate, total interviews, and a
+// status breakdown bar. All numbers come from the /api/analytics endpoint,
+// which the backend keeps updated automatically.
 export default function AIAnalysis() {
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
 
+  // Fetch analytics once on mount.
   useEffect(() => {
     analyticsApi.get().then(setAnalytics);
   }, []);
 
+  // Percent of selected interviews out of everything tracked.
   const successRate = analytics && analytics.total_interviews > 0
     ? Math.round((analytics.selected / analytics.total_interviews) * 100)
     : 0;
@@ -49,12 +55,13 @@ export default function AIAnalysis() {
             No interview data yet. Add interviews to see AI-driven insights here.
           </p>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             {[
               { label: "Selected", value: analytics.selected, color: "bg-emerald-500" },
-              { label: "Waiting", value: analytics.waiting, color: "bg-amber-500" },
+              { label: "Next Round", value: analytics.next_round, color: "bg-violet-500" },
+              { label: "Awaiting", value: analytics.awaiting_result, color: "bg-amber-500" },
+              { label: "No Response", value: analytics.no_response, color: "bg-orange-500" },
               { label: "Rejected", value: analytics.rejected, color: "bg-red-500" },
-              { label: "Pending", value: analytics.pending, color: "bg-gray-400" },
             ].map((s) => (
               <div key={s.label} className="text-center">
                 <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden mb-2">

@@ -1,3 +1,7 @@
+// AIAnswerCheck — inline "Check answer with AI" control.
+// Embed it in any form (Add Interview, Interview Detail, Edit Question) with
+// the current question + typed answer. It calls the stateless AI endpoint and
+// shows a correct / wrong verdict plus the AI's ideal answer right there.
 import { useState } from "react";
 import { Sparkles, Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { aiApi } from "../api/misc";
@@ -16,8 +20,10 @@ export default function AIAnswerCheck({ question, answer }: Props) {
   } | null>(null);
   const [error, setError] = useState("");
 
+  // Only enable the button once both question and answer have some text.
   const canCheck = question.trim().length > 0 && answer.trim().length > 0;
 
+  // Call the stateless AI endpoint and store the verdict to display it.
   const check = async () => {
     if (!canCheck || checking) return;
     setChecking(true);

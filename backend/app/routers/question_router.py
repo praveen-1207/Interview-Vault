@@ -11,6 +11,14 @@ router = APIRouter(prefix="/api/questions", tags=["Questions"])
 
 
 def _owned_question(db: Session, question_id: str, user_id: str) -> Question:
+    """Fetch a question and make sure it belongs to the given user.
+
+    A question is linked to a Round which is linked to an Interview which
+    belongs to a User. We join through all of those tables to confirm the
+    question is reachable from the user's interviews. If it is not (either
+    it doesn't exist or it's someone else's), we raise a 404 so the caller
+    never learns that another user's question exists.
+    """
     q = (
         db.query(Question)
         .join(Round)
@@ -30,6 +38,12 @@ def add_question(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    """Add a question directly to a specific round of the user's interview.
+
+    First verifies the round belongs to the user (join through Interview),
+    then inserts the question into that round. Returns the created question.
+    Used by the Interview Detail page when clicking "Add Question" on a round.
+    """
     round_obj = (
         db.query(Round).join(Interview)
         .filter(Round.id == round_id, Interview.user_id == current_user.id)
@@ -55,7 +69,19 @@ def search_questions(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Question Library: search + filter across all of the user's stored questions."""
+    """Question Library: search + filter across all of the user's stored questions.
+
+    All of the filter arguments are optional. When provided they narrow the
+    results, e.g.:
+    - `search`     → question text contains this word
+    - `company`    → company name contains this text
+    - `topic`      → topic contains this text
+    - `difficulty` → exactly Easy / Medium / Hard
+    - `round_name` → round name contains this text
+
+    Queries are always scoped to the current user via the join chain
+    Question -> Round -> Interview, so users only ever see their own questions.
+    """
     query = (
         db.query(Question)
         .join(Round)
@@ -84,6 +110,12 @@ def update_question(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    """Edit a stored question (text, answer, topic, difficulty).
+
+    `exclude_unset=True` means only the fields the frontend actually sent are
+    overwritten; everything else stays untouched. Runs after ownership check
+    via `_owned_question`. Returns the updated question.
+    """
     question = _owned_question(db, question_id, current_user.id)
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(question, field, value)
@@ -98,6 +130,11 @@ def delete_question(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    """Permanently delete one of the user's questions.
+
+    Verifies ownership first, then removes the row. Returns 204 (no body)
+    when successful. Called by the trash icon on each question.
+    """
     question = _owned_question(db, question_id, current_user.id)
     db.delete(question)
     db.commit()
