@@ -6,7 +6,7 @@ import {
 } from "chart.js";
 import AppLayout from "../components/layout/AppLayout";
 import { Card, StatusBadge } from "../components/ui";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../context/useAuth";
 import { interviewApi } from "../api/interviews";
 import { analyticsApi } from "../api/misc";
 import type { Interview, Analytics } from "../types";

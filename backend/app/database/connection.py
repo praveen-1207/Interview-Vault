@@ -1,134 +1,52 @@
 """
-Database connection setup using SQLAlchemy.
+Supabase client setup.
 
-Defaults to local SQLite so the project runs with zero external setup.
-To use Postgres/Supabase in production, just set DATABASE_URL in .env,
-e.g. postgresql://user:password@host:5432/dbname
+Creates a single shared Supabase client using the project URL + service_role
+key. The schema itself is managed by Supabase (run `backend/migrations/*.sql`
+in the Supabase SQL Editor), so there is no ORM, no create_all, and no
+migration runner here — the Python code just talks to the tables via the
+Supabase PostgREST API.
+
+The `service_role` key bypasses row-level security, so all row-level
+ownership filtering is done explicitly in the routers (e.g. `eq("user_id", ...)`).
 """
 import os
-from sqlalchemy import create_engine, inspect, text
-from sqlalchemy.orm import sessionmaker, declarative_base
 from dotenv import load_dotenv
+from supabase import create_client, Client
 
 load_dotenv()
 
-# Reads the connection string from the environment. Defaults to a local
-# SQLite file (`interviewvault.db`) so the project runs with zero setup;
-# set DATABASE_URL in .env to point at Postgres/Supabase in production.
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./interviewvault.db")
+SUPABASE_URL = os.getenv("SUPABASE_URL", "")
+SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
 
-# SQLite needs this connect_arg; Postgres does not.
-# (SQLite allows only one thread to use a connection at a time, and FastAPI
-# runs handler code on multiple threads — this flag lets them share safely.)
-connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
+if not SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
+    raise RuntimeError(
+        "SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set in backend/.env"
+    )
 
-# `engine` — the single connection pool to the database. Every session below
-# borrows connections from this one place, so we never create raw connections.
-engine = create_engine(DATABASE_URL, connect_args=connect_args)
-
-# `SessionLocal` — a session factory. Each call `SessionLocal()` opens a new
-# DB session (a "unit of work") that the request uses and then closes.
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-# `Base` — the declarative base every ORM model inherits from. SQLAlchemy
-# discovers all tables by looking at classes that subclass this Base.
-Base = declarative_base()
+# `client` — the shared Supabase client. PostgREST is stateless, so a single
+# client is safe to reuse across all requests (no per-request session needed).
+client: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
 
-# ---- Lightweight migrations --------------------------------------------
-# `create_all` only creates tables that DON'T exist — it never adds columns to
-# tables that already exist. So when we add a new column to a model, databases
-# created by an older version of the app would be missing it and every query
-# would fail. `_ensure_column` patches exactly that: it checks the live table
-# schema and runs `ALTER TABLE ... ADD COLUMN` for any missing column. It is a
-# no-op on Postgres when the column already exists (`IF NOT EXISTS`), and on
-# SQLite we guard with the inspector so we never try to add a duplicate column.
+def fetch_one(builder):
+    """Run a query builder and return the first row, or None if no rows match.
 
-# Columns that must exist on the `users` table regardless of which schema
-# version created the database.
-_USER_COLUMNS = [
-    ("occupation", "VARCHAR"),
-    ("target_role", "VARCHAR"),
-    ("location", "VARCHAR"),
-    ("linkedin", "VARCHAR"),
-    ("github", "VARCHAR"),
-]
-
-# Columns added for the follow-up reminder system on the `interviews` table.
-_INTERVIEW_COLUMNS = [
-    ("status_updated_at", "DATETIME"),
-    ("interview_completed_at", "DATETIME"),
-    ("next_reminder_at", "DATETIME"),
-    ("last_reminder_at", "DATETIME"),
-    ("reminder_count", "INTEGER DEFAULT 0"),
-    ("reminder_snoozed_until", "DATETIME"),
-]
-
-# Columns added on the `analytics` table for the new status lifecycle.
-_ANALYTICS_COLUMNS = [
-    ("awaiting_result", "INTEGER DEFAULT 0"),
-    ("next_round", "INTEGER DEFAULT 0"),
-    ("no_response", "INTEGER DEFAULT 0"),
-]
-
-
-def _ensure_columns(conn, table: str, columns):
-    """Add any missing columns to `table` inside an open transaction."""
-    existing = {col["name"] for col in inspect(engine).get_columns(table)}
-    for name, col_type in columns:
-        if name not in existing:
-            conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {name} {col_type}"))
-
-
-def run_migrations():
-    """Ensure every table column the app expects actually exists.
-
-    Called once at startup (see main.py, right after `create_all`). Inspects
-    the live tables and adds any missing columns. Existing rows simply get
-    NULL/0 for the new columns until the user fills them in.
-
-    Also normalises legacy interview statuses to their canonical lifecycle
-    values (backward-compatible data migration):
-    - pending / waiting -> AWAITING_RESULT
-    - selected          -> SELECTED
-    - rejected          -> REJECTED
-    and back-fills `interview_completed_at` from the interview date so the
-    reminder schedule has a reference point for legacy rows.
+    supabase-py's `.maybe_single().execute()` returns None (not a response
+    object) when there are no matches, which makes the `.data` attribute
+    unusable. This helper instead limits to 1 row and reads the returned list,
+    which is always an APIResponse.
     """
-    with engine.begin() as conn:
-        _ensure_columns(conn, "users", _USER_COLUMNS)
-        _ensure_columns(conn, "interviews", _INTERVIEW_COLUMNS)
-        _ensure_columns(conn, "analytics", _ANALYTICS_COLUMNS)
-
-        # Backward-compatible status normalisation for existing rows.
-        conn.execute(text(
-            "UPDATE interviews SET status = 'AWAITING_RESULT' "
-            "WHERE status IN ('pending', 'waiting')"
-        ))
-        conn.execute(text(
-            "UPDATE interviews SET status = 'SELECTED' WHERE status = 'selected'"
-        ))
-        conn.execute(text(
-            "UPDATE interviews SET status = 'REJECTED' WHERE status = 'rejected'"
-        ))
-        # Give legacy AWAITING_RESULT rows a reminder reference date.
-        conn.execute(text(
-            "UPDATE interviews SET interview_completed_at = date "
-            "WHERE status = 'AWAITING_RESULT' "
-            "AND interview_completed_at IS NULL AND date IS NOT NULL"
-        ))
+    rows = builder.limit(1).execute().data
+    return rows[0] if rows else None
 
 
 def get_db():
-    """FastAPI dependency that yields a DB session and closes it after the request.
+    """FastAPI dependency that provides the shared Supabase client.
 
-    Declared as `db: Session = Depends(get_db)` on every endpoint. FastAPI
-    calls this before the handler runs, injects the yielded session into the
-    route, and the `finally` block guarantees the session is always closed —
-    even if the handler raises an exception — so no connections leak.
+    Declared as `supabase: Client = Depends(get_db)` on every endpoint. The
+    client is stateless and thread-safe, so this simply yields the singleton.
+    It is kept as a generator to match the FastAPI dependency pattern and to
+    give us a single place to swap in request-scoped auth later if needed.
     """
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+    yield client

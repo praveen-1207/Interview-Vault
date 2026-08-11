@@ -3,19 +3,13 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
-from app.database.connection import engine, Base, run_migrations
 from app.routers import auth_router, interview_router, question_router, ai_router, analytics_router, user_router
 
 load_dotenv()
 
-# Auto-creates any tables that don't exist yet — safe to leave in even if
-# you already ran migrations/001_initial_schema.sql in the Supabase SQL editor,
-# since it only creates tables that are missing.
-Base.metadata.create_all(bind=engine)
-
-# Adds any columns added after the database was first created (e.g. the
-# occupation/profile fields on `users`), so existing databases keep working.
-run_migrations()
+# The database schema lives in Supabase (run `backend/migrations/*.sql` in the
+# Supabase SQL Editor). No create_all, no migration runner — the app talks to
+# the existing tables via the Supabase REST client.
 
 app = FastAPI(
     title="InterviewVault API",

@@ -1,6 +1,11 @@
 """
 Authentication utilities: password hashing with bcrypt and JWT
 access/refresh token creation + verification.
+
+Users are stored in the Supabase `users` table (the same table the old
+SQLAlchemy models used), so auth remains fully server-side and unchanged in
+shape: we hash with bcrypt, sign JWTs with JWT_SECRET, and load the user row
+via the Supabase client on every protected request.
 """
 import os
 from datetime import datetime, timedelta
@@ -10,10 +15,10 @@ import bcrypt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
-from sqlalchemy.orm import Session
+from supabase import Client
 
-from app.database.connection import get_db
-from app.models.models import User
+from app.database.connection import get_db, fetch_one
+from app.models.models import parse_dt
 
 JWT_SECRET = os.getenv("JWT_SECRET", "dev-secret-change-me")
 JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
@@ -91,14 +96,31 @@ def decode_token(token: str) -> dict:
         )
 
 
-def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
+def _user_from_row(row: Optional[dict]) -> Optional[dict]:
+    """Normalize a `users` row from Supabase into a friendly dict.
+
+    PostgREST returns timestamps as ISO strings; the routers and schemas
+    expect real datetime objects, so `created_at` is parsed here.
+    """
+    if row is None:
+        return None
+    row = dict(row)
+    if "created_at" in row:
+        row["created_at"] = parse_dt(row["created_at"])
+    return row
+
+
+def get_current_user(
+    token: str = Depends(oauth2_scheme),
+    supabase: Client = Depends(get_db),
+) -> dict:
     """Protected-route dependency: decodes the JWT and loads the user.
 
     Every router that needs the logged-in user declares this as a FastAPI
-    dependency (`current_user: User = Depends(get_current_user)`). It:
+    dependency (`current_user: dict = Depends(get_current_user)`). It:
     1. Rejects non-"access" tokens (refresh tokens are rejected here).
     2. Reads the user id from the "sub" claim.
-    3. Loads the matching User row from the database.
+    3. Loads the matching User row from Supabase.
     4. Returns that user, or raises 401 if any step fails.
 
     This single function is what guarantees ALL protected endpoints know
@@ -110,7 +132,11 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     user_id: Optional[str] = payload.get("sub")
     if user_id is None:
         raise HTTPException(status_code=401, detail="Invalid token payload")
-    user = db.query(User).filter(User.id == user_id).first()
-    if user is None:
+    row = fetch_one(
+        supabase.table("users")
+        .select("*")
+        .eq("id", user_id)
+    )
+    if row is None:
         raise HTTPException(status_code=401, detail="User not found")
-    return user
+    return _user_from_row(row)

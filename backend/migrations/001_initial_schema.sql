@@ -2,7 +2,11 @@
 -- InterviewVault — Initial Schema Migration
 -- Run this in Supabase Dashboard → SQL Editor → New Query → Run
 --
--- This matches backend/app/models/models.py exactly.
+-- Creates the complete schema the backend expects: users, companies,
+-- interviews, rounds, questions, analytics. Includes the follow-up
+-- reminder columns on `interviews` and the status-lifecycle counts on
+-- `analytics` so a fresh database matches the live one exactly.
+--
 -- Safe to re-run: uses IF NOT EXISTS everywhere.
 -- ============================================================
 
@@ -24,18 +28,24 @@ CREATE TABLE IF NOT EXISTS companies (
 );
 CREATE INDEX IF NOT EXISTS ix_companies_company_name ON companies (company_name);
 
--- Interviews
+-- Interviews (includes follow-up reminder columns)
 CREATE TABLE IF NOT EXISTS interviews (
-    id              VARCHAR PRIMARY KEY,
-    user_id         VARCHAR NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    company_id      VARCHAR NOT NULL REFERENCES companies(id),
-    role            VARCHAR NOT NULL,
-    interview_type  VARCHAR,
-    date            TIMESTAMP,
-    status          VARCHAR DEFAULT 'pending',
-    confidence      INTEGER DEFAULT 5,
-    notes           TEXT,
-    created_at      TIMESTAMP DEFAULT NOW()
+    id                      VARCHAR PRIMARY KEY,
+    user_id                 VARCHAR NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    company_id              VARCHAR NOT NULL REFERENCES companies(id),
+    role                    VARCHAR NOT NULL,
+    interview_type          VARCHAR,
+    date                    TIMESTAMP,
+    status                  VARCHAR DEFAULT 'pending',
+    confidence              INTEGER DEFAULT 5,
+    notes                   TEXT,
+    status_updated_at       TIMESTAMP,
+    interview_completed_at  TIMESTAMP,
+    next_reminder_at        TIMESTAMP,
+    last_reminder_at        TIMESTAMP,
+    reminder_count          INTEGER DEFAULT 0,
+    reminder_snoozed_until  TIMESTAMP,
+    created_at              TIMESTAMP DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS ix_interviews_user_id ON interviews (user_id);
 CREATE INDEX IF NOT EXISTS ix_interviews_company_id ON interviews (company_id);
@@ -50,7 +60,7 @@ CREATE TABLE IF NOT EXISTS rounds (
 );
 CREATE INDEX IF NOT EXISTS ix_rounds_interview_id ON rounds (interview_id);
 
--- Questions
+-- Questions (belongs to a round; no direct interview link)
 CREATE TABLE IF NOT EXISTS questions (
     id                  VARCHAR PRIMARY KEY,
     round_id            VARCHAR NOT NULL REFERENCES rounds(id) ON DELETE CASCADE,
@@ -66,7 +76,9 @@ CREATE TABLE IF NOT EXISTS questions (
 );
 CREATE INDEX IF NOT EXISTS ix_questions_round_id ON questions (round_id);
 
--- Analytics (one row per user, kept in sync by the backend)
+-- Analytics (one row per user, kept in sync by the backend).
+-- `waiting`/`pending` are legacy columns kept at 0; the canonical status
+-- lifecycle is counted in awaiting_result / next_round / no_response.
 CREATE TABLE IF NOT EXISTS analytics (
     id                  VARCHAR PRIMARY KEY,
     user_id             VARCHAR UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -74,10 +86,13 @@ CREATE TABLE IF NOT EXISTS analytics (
     selected            INTEGER DEFAULT 0,
     waiting             INTEGER DEFAULT 0,
     rejected            INTEGER DEFAULT 0,
-    pending             INTEGER DEFAULT 0
+    pending             INTEGER DEFAULT 0,
+    awaiting_result     INTEGER DEFAULT 0,
+    next_round          INTEGER DEFAULT 0,
+    no_response         INTEGER DEFAULT 0
 );
 
 -- ============================================================
 -- Done. Six tables created: users, companies, interviews,
--- rounds, questions, analytics — matching the FastAPI models.
+-- rounds, questions, analytics — matching the Supabase schema.
 -- ============================================================

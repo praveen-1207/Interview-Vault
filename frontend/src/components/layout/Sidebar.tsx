@@ -5,7 +5,7 @@ import {
   LayoutDashboard, Briefcase, Library, BarChart3,
   Settings, LogOut, Sparkles,
 } from "lucide-react";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/useAuth";
 
 // Each entry maps a route path to its label + icon shown in the sidebar.
 const navItems = [

@@ -4,21 +4,18 @@
 // Holds the current user in React state and mirrors it to localStorage so a
 // page refresh keeps you logged in. Every component can grab this state via
 // `useAuth()` instead of passing the user around as props.
+// -------------------------------------------------
+// IMPORTANT — stale-session protection: on app boot we call `/api/auth/me`
+// to VALIDATE any saved token. If it is old, expired, or references a user
+// that no longer exists in the database (e.g. after a DB migration), the
+// session is discarded automatically. This guarantees the UI can never get
+// stuck "logged in" with a token every request rejects (which used to
+// surface as confusing 401/CORS errors on every page load).
 // =========================================================
-import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
+import { useState, useCallback, useEffect, type ReactNode } from "react";
 import type { User } from "../types";
 import { authApi } from "../api/auth";
-
-interface AuthContextType {
-  user: User | null;
-  isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  register: (name: string, email: string, password: string) => Promise<void>;
-  logout: () => void;
-  updateUser: (user: User) => void;
-}
-
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+import { AuthContext } from "./useAuth";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   // On first load, re-hydrate the user from localStorage (if any).
@@ -26,6 +23,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const stored = localStorage.getItem("iv_user");
     return stored ? JSON.parse(stored) : null;
   });
+
+  // True while we check the saved token against the backend on first load.
+  const [isBootstrapping, setIsBootstrapping] = useState(true);
 
   // Save tokens + user to localStorage AND update React state.
   // localStorage is what lets the session survive page reloads.
@@ -62,16 +62,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(u);
   }, []);
 
+  // Validate any saved session once on boot. If the stored token refers to
+  // a user that no longer exists (DB reset/migration), this clears the
+  // session so the app boots logged-out instead of stuck with 401s.
+  useEffect(() => {
+    let cancelled = false;
+    const bootstrap = async () => {
+      try {
+        const token = localStorage.getItem("iv_access_token");
+        if (token) {
+          const me = await authApi.me();
+          if (!cancelled) {
+            // Store the freshest copy of the user, and make sure the id
+            // matches what the backend knows.
+            localStorage.setItem("iv_user", JSON.stringify(me));
+            setUser(me);
+          }
+        }
+      } catch {
+        // 401 / network error — token is invalid or the user is gone.
+        if (!cancelled) logout();
+      } finally {
+        if (!cancelled) setIsBootstrapping(false);
+      }
+    };
+    bootstrap();
+    return () => {
+      cancelled = true;
+    };
+  }, [logout]);
+
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, login, register, logout, updateUser }}>
+    <AuthContext.Provider
+      value={{ user, isAuthenticated: !!user, isBootstrapping, login, register, logout, updateUser }}
+    >
       {children}
     </AuthContext.Provider>
   );
-}
-
-// Hook any component can call to get the current auth state/functions.
-export function useAuth() {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
-  return ctx;
 }

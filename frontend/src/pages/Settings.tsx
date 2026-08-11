@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Briefcase, MapPin, Link2, Code, Target, LogOut } from "lucide-react";
 import AppLayout from "../components/layout/AppLayout";
 import { Card, Input, Label, Button } from "../components/ui";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../context/useAuth";
 import { userApi } from "../api/misc";
 
 // The career options a user can pick for "current occupation". The signup

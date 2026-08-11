@@ -2,7 +2,7 @@
 // Has a hero, a features section, and buttons for sign-up/login. No logic —
 // purely presentational.
 import { Link } from "react-router-dom";
-import { Sparkles, Target, Brain, TrendingUp, ArrowRight } from "lucide-react";
+import { Sparkles, Target, Brain, TrendingUp } from "lucide-react";
 
 // The four feature cards displayed in the Features section.
 const features = [
@@ -45,10 +45,7 @@ export default function Landing() {
           track your progress toward every offer.
         </p>
         <div className="mt-8 flex items-center justify-center gap-3">
-          <Link to="/register" className="bg-brand-600 text-white font-medium px-6 py-3 rounded-lg hover:bg-brand-700 transition flex items-center gap-2">
-            Get Started for Free <ArrowRight className="w-4 h-4" />
-          </Link>
-          <Link to="/login" className="border border-gray-200 text-gray-700 font-medium px-6 py-3 rounded-lg hover:bg-gray-50 transition">
+          <Link to="/login" className="bg-brand-600 text-white font-medium px-6 py-3 rounded-lg hover:bg-brand-700 transition">
             Sign In
           </Link>
         </div>
@@ -65,6 +62,23 @@ export default function Landing() {
                 <Icon className="w-5 h-5 text-brand-600" />
               </div>
               <h3 className="font-semibold text-gray-900 mb-1.5">{title}</h3>
+              <p className="text-sm text-gray-500">{desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section id="how" className="px-8 py-16">
+        <h2 className="text-2xl font-bold text-center text-gray-900 mb-10">How it Works</h2>
+        <div className="max-w-4xl mx-auto grid grid-cols-1 sm:grid-cols-3 gap-5">
+          {[
+            { step: "01", title: "Log your interviews", desc: "Add every interview you attend along with the questions you faced." },
+            { step: "02", title: "Review with AI", desc: "Get ideal answers and feedback for each question to learn what to improve." },
+            { step: "03", desc: "Track your progress across interviews and walk into your next one prepared.", title: "Improve every time" },
+          ].map(({ step, title, desc }) => (
+            <div key={step} className="rounded-2xl border border-gray-100 p-6 shadow-card">
+              <span className="text-3xl font-extrabold text-brand-600">{step}</span>
+              <h3 className="font-semibold text-gray-900 mt-3 mb-1.5">{title}</h3>
               <p className="text-sm text-gray-500">{desc}</p>
             </div>
           ))}

@@ -70,7 +70,7 @@ api.interceptors.response.use(
       error.response?.status !== 401 ||
       original?._retry ||
       !original?.url ||
-      original.url.includes("/api/auth/")
+      original.url.includes("/api/auth/refresh")
     ) {
       return Promise.reject(error);
     }
