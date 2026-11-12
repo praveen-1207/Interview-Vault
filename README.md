@@ -264,16 +264,19 @@ status → delete → logout → verify 401s on protected routes without a token
 
 ### Frontend (Vercel)
 
-1. Push the repo to GitHub.
-2. Import `frontend/` as a new Vercel project (root directory: `frontend`).
-3. Add env var `VITE_API_URL=https://your-backend.onrender.com/api/v1`.
-4. Build command `npm run build`, output `dist`.
+1. Push the repo to GitHub and import it into Vercel.
+2. Set the project **Root Directory** to `frontend` (deploy the frontend only).
+3. Use `npm run build` as the build command and `dist` as the output directory.
+   The included `frontend/vercel.json` handles SPA routes on direct navigation.
+4. Add `VITE_API_URL=https://your-backend.onrender.com/api/v1` as a Vercel
+   environment variable for Production and Preview deployments.
 
 ### Backend (Render / Railway)
 
 1. Create a new web service from the repo, root directory `backend`.
 2. Build: `pip install -r requirements.txt`. Start: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`.
-3. Set env vars: `DATABASE_URL`, `JWT_SECRET`, `GEMINI_API_KEY`, `ALLOWED_ORIGINS=https://your-app.vercel.app`.
+3. Set env vars: `DATABASE_URL`, `JWT_SECRET`, `GEMINI_API_KEY`, and
+   `ALLOWED_ORIGINS` to include your Vercel production URL.
 
 ### Database (Supabase)
 
