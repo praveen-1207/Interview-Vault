@@ -3,9 +3,12 @@ import type { User } from '@/types'
 
 const TOKEN_KEY = 'iv_access'
 const REFRESH_KEY = 'iv_refresh'
+const configuredApiUrl = import.meta.env.VITE_API_URL?.trim()
+
+export const API_BASE_URL = (configuredApiUrl || 'http://localhost:8000/api/v1').replace(/\/+$/, '')
 
 export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL ?? '/api/v1',
+  baseURL: API_BASE_URL,
   withCredentials: false,
 })
 
@@ -13,6 +16,10 @@ api.interceptors.request.use((config) => {
   const token = localStorage.getItem(TOKEN_KEY)
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
+  }
+  // Legacy modules include /api in their paths; keep the API v1 prefix from being duplicated.
+  if (config.url?.startsWith('/api/')) {
+    config.baseURL = new URL(API_BASE_URL, window.location.origin).origin
   }
   return config
 })
@@ -23,10 +30,7 @@ async function attemptRefresh(): Promise<string | null> {
   const refresh = localStorage.getItem(REFRESH_KEY)
   if (!refresh) return null
   try {
-    const { data } = await axios.post(
-      `${import.meta.env.VITE_API_URL ?? '/api/v1'}/auth/refresh`,
-      { refresh_token: refresh },
-    )
+    const { data } = await api.post('/auth/refresh', { refresh_token: refresh })
     localStorage.setItem(TOKEN_KEY, data.access_token)
     localStorage.setItem(REFRESH_KEY, data.refresh_token)
     return data.access_token
@@ -41,7 +45,12 @@ api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
     const original = error.config as (typeof error.config & { _retried?: boolean }) | undefined
-    if (error.response?.status === 401 && original && !original._retried) {
+    if (
+      error.response?.status === 401 &&
+      original &&
+      !original._retried &&
+      !original.url?.endsWith('/auth/refresh')
+    ) {
       original._retried = true
       refreshPromise = refreshPromise ?? attemptRefresh()
       const token = await refreshPromise
